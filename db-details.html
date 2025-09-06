@@ -5,127 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Database Details - AI Outreach Agent</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#fafafa; margin:0; padding:20px; color:#222; }
-    header { background:#0069d9; color:white; padding:1rem; text-align:center; border-radius:6px; }
-    section { background:white; padding:1rem; margin:1rem 0; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
-    h2 { color:#0069d9; }
-    pre { background:#f4f4f4; padding:1rem; border-radius:6px; overflow-x:auto; font-size:14px; }
-    ul { margin-left:1.2rem; }
-    a.back { display:inline-block; margin-top:1rem; color:#0069d9; text-decoration:none; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Database Architecture</h1>
-    <p>Details of MySQL Tables and Structure</p>
-  </header>
+    body { 
+      font-family: Arial, sans-serif; 
+      background:#fafafa; 
+      margin:0; 
+      padding:20px; 
+      color:#222; 
+      line-height:1.6;
+    }
+    header { 
+      background:#0069d9; 
+      color:white; 
+      padding:1rem; 
+      text-align:center; 
+      border-radius:6px; 
+      margin-bottom: 1rem;
+    }
+    section { 
+      background:white; 
+      padding:1rem; 
+      margin:1rem 0; 
+      border-radius:6px; 
+      box-shadow:0 1px 4px rgba(0,0,0,0.1); 
+    }
+    h2 { color:#0069d9; margin-top:0; }
+    pre { 
+      background:#f4f4f4; 
+      padding:1rem; 
+      border-radius:6px; 
+      overflow-x:auto; 
+      font-size:14px; 
+    }
+    p { margin:0.5rem 0 1rem; }
+    a.back { 
+      display:inline-block; 
+      margin-top:1rem; 
+      color:#0069d9; 
+      text-decoration:none; 
+      font-weight:bold; 
+    }
+    a.back:hover { text-decoration:underline; }
 
-  <section>
-    <h2>1. Leads Table</h2>
-    <p>Stores contact and company details of potential clients.</p>
-    <pre>
-CREATE TABLE leads (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  company VARCHAR(255),
-  domain VARCHAR(255),
-  contact_name VARCHAR(255),
-  title VARCHAR(255),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  linkedin TEXT,
-  location VARCHAR(255),
-  employee_count INT,
-  tech_stack JSON,
-  funding JSON,
-  source VARCHAR(100),
-  status VARCHAR(50) DEFAULT 'new',
-  score INT DEFAULT 0,
-  last_contacted_at TIMESTAMP NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-    </pre>
-  </section>
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      body { padding:10px; }
+      header { font-size: 90%; padding:0.8rem; }
+      section { padding:0.8rem; }
+      pre { font-size:12px; }
+    }
 
-  <section>
-    <h2>2. Campaigns Table</h2>
-    <p>Defines outreach campaigns and settings.</p>
-    <pre>
-CREATE TABLE campaigns (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  segment_sql TEXT,
-  send_window JSON,
-  inbox_pool JSON,
-  sequence JSON NOT NULL,
-  status VARCHAR(50) DEFAULT 'draft'
-);
-    </pre>
-  </section>
-
-  <section>
-    <h2>3. Messages Table</h2>
-    <p>Logs all individual emails sent in campaigns.</p>
-    <pre>
-CREATE TABLE messages (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  campaign_id BIGINT,
-  lead_id BIGINT,
-  step INT,
-  subject TEXT,
-  body_md TEXT,
-  sent_at TIMESTAMP,
-  provider_message_id VARCHAR(255),
-  delivery_status VARCHAR(50) DEFAULT 'sent',
-  FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
-  FOREIGN KEY (lead_id) REFERENCES leads(id)
-);
-    </pre>
-  </section>
-
-  <section>
-    <h2>4. Events Table</h2>
-    <p>Tracks opens, clicks, replies, bounces, and unsubscribes.</p>
-    <pre>
-CREATE TABLE events (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  message_id BIGINT,
-  type ENUM('open','click','reply','bounce','ooo','unsub') NOT NULL,
-  meta JSON,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (message_id) REFERENCES messages(id)
-);
-    </pre>
-  </section>
-
-  <section>
-    <h2>5. Suppression Table</h2>
-    <p>Stores blocked/unsubscribed email addresses.</p>
-    <pre>
-CREATE TABLE suppression (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  reason VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-    </pre>
-  </section>
-
-  <p><a class="back" href="index.html">&larr; Back to Main Page</a></p>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Database Details - AI Outreach Agent</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#fafafa; margin:0; padding:20px; color:#222; }
-    header { background:#0069d9; color:white; padding:1rem; text-align:center; border-radius:6px; }
-    section { background:white; padding:1rem; margin:1rem 0; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
-    h2 { color:#0069d9; }
-    pre { background:#f4f4f4; padding:1rem; border-radius:6px; overflow-x:auto; font-size:14px; }
-    ul { margin-left:1.2rem; }
-    a.back { display:inline-block; margin-top:1rem; color:#0069d9; text-decoration:none; }
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.2rem; }
+      header p { font-size: 0.9rem; }
+      h2 { font-size: 1.1rem; }
+      pre { font-size:11px; padding:0.6rem; }
+    }
   </style>
 </head>
 <body>
