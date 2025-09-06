@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Outreach Agent: Technical Specification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; line-height: 1.6; background: #fdfdfd; color: #222; }
+    header { background: #0069d9; color: white; padding: 1rem; text-align: center; }
+    nav { position: fixed; top: 0; right: 0; background: #fff; border-left: 1px solid #ddd; height: 100%; width: 260px; overflow-y: auto; padding: 1rem; font-size: 14px; }
+    nav h3 { margin-top: 0; }
+    nav a { display: block; color: #0069d9; text-decoration: none; margin: 0.3rem 0; }
+    main { margin-right: 280px; padding: 1.5rem; max-width: 900px; }
+    section { background: #fff; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h2 { color: #0069d9; margin-top: 0; }
+    pre { background: #f4f4f4; padding: 0.8rem; overflow-x: auto; border-radius: 4px; font-size: 13px; }
+    ul, ol { margin-left: 1rem; }
+    img, svg { display: block; max-width: 100%; margin: 1rem auto; }
+    .team-box { background: #eef9ff; border-left: 4px solid #17a2b8; padding: 1rem; margin-top: 1rem; border-radius: 5px; }
+    .team-box h3 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Outreach Agent: Technical Specification & Implementation Plan</h1>
+    <p>Version 1.1 | Date: September 6, 2025</p>
+    <p>Primary Stakeholders: Rishi/Team (Operator), Development Team</p>
+    <p>Stack: React.js (Frontend) | Spring Boot (Backend) | MySQL (Database) | Redis (Queue/Cache)</p>
+  </header>
+
+  <nav>
+    <h3>Contents</h3>
+    <a href="#goal">Goal & KPIs</a>
+    <a href="#scope">Scope</a>
+    <a href="#arch">Architecture</a>
+    <a href="#db">Database</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#ai">AI & Emails</a>
+    <a href="#deliver">Deliverability</a>
+    <a href="#qa">QA Checklist</a>
+    <a href="#team">Team Work</a>
+  </nav>
+
+  <main>
+    <section id="goal">
+      <h2>1. Goal & Core Metrics</h2>
+      <p><b>Project Goal:</b> Automate sending personalized cold emails to AI companies/startups, covering the full outreach cycle (lead intake → emails → replies → reporting).</p>
+      <ul>
+        <li>Daily Send Volume: ~2500 emails</li>
+        <li>Hard Bounce Rate: &lt; 3%</li>
+        <li>Positive Reply Rate: &gt; 10%</li>
+        <li>Time-to-first-send: &lt; 60 mins after CSV upload</li>
+        <li>Personalization latency: &lt; 7s per lead (p95)</li>
+      </ul>
+    </section>
+
+    <section id="scope">
+      <h2>2. Scope of Work</h2>
+      <h3>MVP (2–3 weeks)</h3>
+      <ul>
+        <li>Lead sourcing & enrichment</li>
+        <li>Validation (MX check)</li>
+        <li>Email sequences with warmup</li>
+        <li>Reply/link tracking</li>
+        <li>Simple dashboard + CRM sync</li>
+      </ul>
+      <h3>Phase 2</h3>
+      <ul>
+        <li>LinkedIn DM drafts</li>
+        <li>AI lead scoring & smart replies</li>
+        <li>Calendly booking automation</li>
+        <li>A/B testing + inbox rotation</li>
+      </ul>
+    </section>
+
+    <section id="arch">
+      <h2>3. System Architecture</h2>
+      <p>Built with React (frontend), Spring Boot microservices (backend), MySQL (DB), Redis (queue/cache), S3 (storage). Observability with OpenTelemetry + Grafana.</p>
+      <h3>Architecture Diagram</h3>
+      <svg width="650" height="340">
+        <rect x="50" y="20" width="200" height="60" fill="#0069d9" rx="8"></rect>
+        <text x="150" y="55" fill="white" text-anchor="middle">Frontend (React)</text>
+
+        <rect x="350" y="20" width="200" height="60" fill="#28a745" rx="8"></rect>
+        <text x="450" y="55" fill="white" text-anchor="middle">Backend (Spring Boot)</text>
+
+        <line x1="250" y1="50" x2="350" y2="50" stroke="#000" marker-end="url(#arrow)" />
+
+        <rect x="350" y="120" width="200" height="60" fill="#ffc107" rx="8"></rect>
+        <text x="450" y="155" fill="black" text-anchor="middle">Database (MySQL)</text>
+
+        <rect x="50" y="120" width="200" height="60" fill="#6f42c1" rx="8"></rect>
+        <text x="150" y="155" fill="white" text-anchor="middle">Redis Queue</text>
+
+        <rect x="200" y="220" width="200" height="60" fill="#17a2b8" rx="8"></rect>
+        <text x="300" y="255" fill="white" text-anchor="middle">Email + AI Service</text>
+
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#000" />
+          </marker>
+        </defs>
+
+        <line x1="450" y1="80" x2="450" y2="120" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="250" y1="150" x2="350" y2="150" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="450" y1="180" x2="300" y2="220" stroke="#000" marker-end="url(#arrow)" />
+      </svg>
+    </section>
+
+    <section id="db">
+      <h2>4. Database Design</h2>
+      <p>Core tables: <b>Leads</b>, <b>Campaigns</b>, <b>Messages</b>, <b>Events</b>, <b>Suppression</b>. These hold info about contacts, campaigns, sends, and interactions.</p>
+      <svg width="650" height="280">
+        <rect x="50" y="20" width="150" height="60" fill="#17a2b8" rx="6"></rect>
+        <text x="125" y="55" fill="white" text-anchor="middle">Leads</text>
+
+        <rect x="250" y="20" width="150" height="60" fill="#28a745" rx="6"></rect>
+        <text x="325" y="55" fill="white" text-anchor="middle">Campaigns</text>
+
+        <rect x="450" y="20" width="150" height="60" fill="#ffc107" rx="6"></rect>
+        <text x="525" y="55" fill="black" text-anchor="middle">Messages</text>
+
+        <rect x="150" y="120" width="150" height="60" fill="#6f42c1" rx="6"></rect>
+        <text x="225" y="155" fill="white" text-anchor="middle">Events</text>
+
+        <rect x="350" y="120" width="150" height="60" fill="#dc3545" rx="6"></rect>
+        <text x="425" y="155" fill="white" text-anchor="middle">Suppression</text>
+
+        <line x1="200" y1="80" x2="325" y2="80" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="400" y1="80" x2="525" y2="80" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="325" y1="80" x2="225" y2="120" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="525" y1="80" x2="425" y2="120" stroke="#000" marker-end="url(#arrow)" />
+      </svg>
+    </section>
+    <p style="text-align:center; margin-top:1rem;">
+  <a href="db-details.html">
+    <button style="padding:10px 18px; background:#0069d9; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+      View Full Database Details
+    </button>
+  </a>
+</p>
+
+
+    <section id="workflow">
+      <h2>5. End-to-End Workflow</h2>
+      <ol>
+        <li><b>Lead Intake:</b> React upload → Spring Boot API → Redis job → Enrichment.</li>
+        <li><b>Enrichment:</b> MX check, fetch website, AI personalization.</li>
+        <li><b>Sequencing:</b> Quartz scheduler → Select leads → Push Email jobs to Redis.</li>
+        <li><b>Sending:</b> Spring Mail → SMTP inboxes with tracking links/pixels.</li>
+        <li><b>Tracking:</b> Opens/clicks/replies logged in events table.</li>
+        <li><b>Triage:</b> AI classifies replies → Pause/reschedule as needed.</li>
+        <li><b>Handover:</b> Push interested leads to HubSpot/Sheets.</li>
+        <li><b>Reporting:</b> Analytics service → Dashboard charts (Recharts).</li>
+      </ol>
+    </section>
+
+    <section id="ai">
+      <h2>6. AI Personalization & Email Sequence</h2>
+      <p>AI helps with writing personalized intros, pain points, and CTAs. Prompts instruct the LLM to output JSON with icebreaker, pain_hypothesis, and CTA.</p>
+      <pre>{
+  "icebreaker": "string (<= 35 words)",
+  "pain_hypothesis": "string (<= 25 words)",
+  "cta_variant": "string (one line, specific next step)"
+}</pre>
+      <p><b>Email Templates:</b></p>
+      <ul>
+        <li><b>Day 0:</b> Main pitch + pilot idea.</li>
+        <li><b>Day 3:</b> Short nudge + proof point.</li>
+        <li><b>Day 9:</b> Breakup email with resource link.</li>
+      </ul>
+    </section>
+
+    <section id="deliver">
+      <h2>7. Deliverability & Compliance</h2>
+      <ul>
+        <li>SPF, DKIM, DMARC setup checks</li>
+        <li>Per-inbox limits + warmup mode</li>
+        <li>One-click unsubscribe → suppression table</li>
+        <li>Admin: suppression import, blocklists, human-approve toggle</li>
+      </ul>
+    </section>
+
+    <section id="qa">
+      <h2>8. QA Checklist</h2>
+      <ul>
+        <li>MX + SMTP validation works</li>
+        <li>DKIM/SPF/DMARC verifier passes</li>
+        <li>Events (open/click/reply) visible in dashboard</li>
+        <li>Unsubscribe link functional</li>
+        <li>AI personalization fields filled correctly</li>
+        <li>Timezone-aware sending + holiday skip works</li>
+        <li>Deduplication prevents duplicates</li>
+      </ul>
+    </section>
+
+    <section id="team">
+      <h2>9. Team Work Split</h2>
+      <div class="team-box">
+        <h3>Mohit</h3>
+        <p>Frontend – React UI (forms, dashboard, charts).</p>
+      </div>
+      <div class="team-box">
+        <h3>Neerav</h3>
+        <p>Backend – Spring Boot APIs, email logic, security.</p>
+      </div>
+      <div class="team-box">
+        <h3>Rudransh</h3>
+        <p>AI – LLM prompts, lead scoring, smart reply drafts.</p>
+      </div>
+      <div class="team-box">
+        <h3>Rishi</h3>
+        <p>Documentation & Marketing – Guides, docs, outreach plans.</p>
+      </div>
+      <div class="team-box">
+        <h3>Shared</h3>
+        <p>Testing, deployment, DB schema design, architecture decisions (done together).</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Smooth scroll for sidebar
+    document.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Outreach Agent: Technical Specification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; line-height: 1.6; background: #fdfdfd; color: #222; }
+    header { background: #0069d9; color: white; padding: 1rem; text-align: center; }
+    nav { position: fixed; top: 0; right: 0; background: #fff; border-left: 1px solid #ddd; height: 100%; width: 260px; overflow-y: auto; padding: 1rem; font-size: 14px; }
+    nav h3 { margin-top: 0; }
+    nav a { display: block; color: #0069d9; text-decoration: none; margin: 0.3rem 0; }
+    main { margin-right: 280px; padding: 1.5rem; max-width: 900px; }
+    section { background: #fff; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h2 { color: #0069d9; margin-top: 0; }
+    pre { background: #f4f4f4; padding: 0.8rem; overflow-x: auto; border-radius: 4px; font-size: 13px; }
+    ul, ol { margin-left: 1rem; }
+    img, svg { display: block; max-width: 100%; margin: 1rem auto; }
+    .team-box { background: #eef9ff; border-left: 4px solid #17a2b8; padding: 1rem; margin-top: 1rem; border-radius: 5px; }
+    .team-box h3 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Outreach Agent: Technical Specification & Implementation Plan</h1>
+    <p>Version 1.1 | Date: September 6, 2025</p>
+    <p>Primary Stakeholders: Rishi/Team (Operator), Development Team</p>
+    <p>Stack: React.js (Frontend) | Spring Boot (Backend) | MySQL (Database) | Redis (Queue/Cache)</p>
+  </header>
+
+  <nav>
+    <h3>Contents</h3>
+    <a href="#goal">Goal & KPIs</a>
+    <a href="#scope">Scope</a>
+    <a href="#arch">Architecture</a>
+    <a href="#db">Database</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#ai">AI & Emails</a>
+    <a href="#deliver">Deliverability</a>
+    <a href="#qa">QA Checklist</a>
+    <a href="#team">Team Work</a>
+  </nav>
+
+  <main>
+    <section id="goal">
+      <h2>1. Goal & Core Metrics</h2>
+      <p><b>Project Goal:</b> Automate sending personalized cold emails to AI companies/startups, covering the full outreach cycle (lead intake → emails → replies → reporting).</p>
+      <ul>
+        <li>Daily Send Volume: ~2500 emails</li>
+        <li>Hard Bounce Rate: &lt; 3%</li>
+        <li>Positive Reply Rate: &gt; 10%</li>
+        <li>Time-to-first-send: &lt; 60 mins after CSV upload</li>
+        <li>Personalization latency: &lt; 7s per lead (p95)</li>
+      </ul>
+    </section>
+
+    <section id="scope">
+      <h2>2. Scope of Work</h2>
+      <h3>MVP (2–3 weeks)</h3>
+      <ul>
+        <li>Lead sourcing & enrichment</li>
+        <li>Validation (MX check)</li>
+        <li>Email sequences with warmup</li>
+        <li>Reply/link tracking</li>
+        <li>Simple dashboard + CRM sync</li>
+      </ul>
+      <h3>Phase 2</h3>
+      <ul>
+        <li>LinkedIn DM drafts</li>
+        <li>AI lead scoring & smart replies</li>
+        <li>Calendly booking automation</li>
+        <li>A/B testing + inbox rotation</li>
+      </ul>
+    </section>
+
+    <section id="arch">
+      <h2>3. System Architecture</h2>
+      <p>Built with React (frontend), Spring Boot microservices (backend), MySQL (DB), Redis (queue/cache), S3 (storage). Observability with OpenTelemetry + Grafana.</p>
+      <h3>Architecture Diagram</h3>
+      <svg width="650" height="340">
+        <rect x="50" y="20" width="200" height="60" fill="#0069d9" rx="8"></rect>
+        <text x="150" y="55" fill="white" text-anchor="middle">Frontend (React)</text>
+
+        <rect x="350" y="20" width="200" height="60" fill="#28a745" rx="8"></rect>
+        <text x="450" y="55" fill="white" text-anchor="middle">Backend (Spring Boot)</text>
+
+        <line x1="250" y1="50" x2="350" y2="50" stroke="#000" marker-end="url(#arrow)" />
+
+        <rect x="350" y="120" width="200" height="60" fill="#ffc107" rx="8"></rect>
+        <text x="450" y="155" fill="black" text-anchor="middle">Database (MySQL)</text>
+
+        <rect x="50" y="120" width="200" height="60" fill="#6f42c1" rx="8"></rect>
+        <text x="150" y="155" fill="white" text-anchor="middle">Redis Queue</text>
+
+        <rect x="200" y="220" width="200" height="60" fill="#17a2b8" rx="8"></rect>
+        <text x="300" y="255" fill="white" text-anchor="middle">Email + AI Service</text>
+
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#000" />
+          </marker>
+        </defs>
+
+        <line x1="450" y1="80" x2="450" y2="120" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="250" y1="150" x2="350" y2="150" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="450" y1="180" x2="300" y2="220" stroke="#000" marker-end="url(#arrow)" />
+      </svg>
+    </section>
+
+    <section id="db">
+      <h2>4. Database Design</h2>
+      <p>Core tables: <b>Leads</b>, <b>Campaigns</b>, <b>Messages</b>, <b>Events</b>, <b>Suppression</b>. These hold info about contacts, campaigns, sends, and interactions.</p>
+      <svg width="650" height="280">
+        <rect x="50" y="20" width="150" height="60" fill="#17a2b8" rx="6"></rect>
+        <text x="125" y="55" fill="white" text-anchor="middle">Leads</text>
+
+        <rect x="250" y="20" width="150" height="60" fill="#28a745" rx="6"></rect>
+        <text x="325" y="55" fill="white" text-anchor="middle">Campaigns</text>
+
+        <rect x="450" y="20" width="150" height="60" fill="#ffc107" rx="6"></rect>
+        <text x="525" y="55" fill="black" text-anchor="middle">Messages</text>
+
+        <rect x="150" y="120" width="150" height="60" fill="#6f42c1" rx="6"></rect>
+        <text x="225" y="155" fill="white" text-anchor="middle">Events</text>
+
+        <rect x="350" y="120" width="150" height="60" fill="#dc3545" rx="6"></rect>
+        <text x="425" y="155" fill="white" text-anchor="middle">Suppression</text>
+
+        <line x1="200" y1="80" x2="325" y2="80" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="400" y1="80" x2="525" y2="80" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="325" y1="80" x2="225" y2="120" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="525" y1="80" x2="425" y2="120" stroke="#000" marker-end="url(#arrow)" />
+      </svg>
+    </section>
+
+    <section id="workflow">
+      <h2>5. End-to-End Workflow</h2>
+      <ol>
+        <li><b>Lead Intake:</b> React upload → Spring Boot API → Redis job → Enrichment.</li>
+        <li><b>Enrichment:</b> MX check, fetch website, AI personalization.</li>
+        <li><b>Sequencing:</b> Quartz scheduler → Select leads → Push Email jobs to Redis.</li>
+        <li><b>Sending:</b> Spring Mail → SMTP inboxes with tracking links/pixels.</li>
+        <li><b>Tracking:</b> Opens/clicks/replies logged in events table.</li>
+        <li><b>Triage:</b> AI classifies replies → Pause/reschedule as needed.</li>
+        <li><b>Handover:</b> Push interested leads to HubSpot/Sheets.</li>
+        <li><b>Reporting:</b> Analytics service → Dashboard charts (Recharts).</li>
+      </ol>
+    </section>
+
+    <section id="ai">
+      <h2>6. AI Personalization & Email Sequence</h2>
+      <p>AI helps with writing personalized intros, pain points, and CTAs. Prompts instruct the LLM to output JSON with icebreaker, pain_hypothesis, and CTA.</p>
+      <pre>{
+  "icebreaker": "string (<= 35 words)",
+  "pain_hypothesis": "string (<= 25 words)",
+  "cta_variant": "string (one line, specific next step)"
+}</pre>
+      <p><b>Email Templates:</b></p>
+      <ul>
+        <li><b>Day 0:</b> Main pitch + pilot idea.</li>
+        <li><b>Day 3:</b> Short nudge + proof point.</li>
+        <li><b>Day 9:</b> Breakup email with resource link.</li>
+      </ul>
+    </section>
+
+    <section id="deliver">
+      <h2>7. Deliverability & Compliance</h2>
+      <ul>
+        <li>SPF, DKIM, DMARC setup checks</li>
+        <li>Per-inbox limits + warmup mode</li>
+        <li>One-click unsubscribe → suppression table</li>
+        <li>Admin: suppression import, blocklists, human-approve toggle</li>
+      </ul>
+    </section>
+
+    <section id="qa">
+      <h2>8. QA Checklist</h2>
+      <ul>
+        <li>MX + SMTP validation works</li>
+        <li>DKIM/SPF/DMARC verifier passes</li>
+        <li>Events (open/click/reply) visible in dashboard</li>
+        <li>Unsubscribe link functional</li>
+        <li>AI personalization fields filled correctly</li>
+        <li>Timezone-aware sending + holiday skip works</li>
+        <li>Deduplication prevents duplicates</li>
+      </ul>
+    </section>
+
+    <section id="team">
+      <h2>9. Team Work Split</h2>
+      <div class="team-box">
+        <h3>Mohit</h3>
+        <p>Frontend – React UI (forms, dashboard, charts).</p>
+      </div>
+      <div class="team-box">
+        <h3>Neerav</h3>
+        <p>Backend – Spring Boot APIs, email logic, security.</p>
+      </div>
+      <div class="team-box">
+        <h3>Rudransh</h3>
+        <p>AI – LLM prompts, lead scoring, smart reply drafts.</p>
+      </div>
+      <div class="team-box">
+        <h3>Rishi</h3>
+        <p>Documentation & Marketing – Guides, docs, outreach plans.</p>
+      </div>
+      <div class="team-box">
+        <h3>Shared</h3>
+        <p>Testing, deployment, DB schema design, architecture decisions (done together).</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Smooth scroll for sidebar
+    document.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Outreach Agent: Technical Specification</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; line-height: 1.6; background: #fdfdfd; color: #222; }
+    header { background: #0069d9; color: white; padding: 1rem; text-align: center; }
+    nav { position: fixed; top: 0; right: 0; background: #fff; border-left: 1px solid #ddd; height: 100%; width: 260px; overflow-y: auto; padding: 1rem; font-size: 14px; }
+    nav h3 { margin-top: 0; }
+    nav a { display: block; color: #0069d9; text-decoration: none; margin: 0.3rem 0; }
+    main { margin-right: 280px; padding: 1.5rem; max-width: 900px; }
+    section { background: #fff; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h2 { color: #0069d9; margin-top: 0; }
+    pre { background: #f4f4f4; padding: 0.8rem; overflow-x: auto; border-radius: 4px; font-size: 13px; }
+    ul, ol { margin-left: 1rem; }
+    img, svg { display: block; max-width: 100%; margin: 1rem auto; }
+    .team-box { background: #eef9ff; border-left: 4px solid #17a2b8; padding: 1rem; margin-top: 1rem; border-radius: 5px; }
+    .team-box h3 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Outreach Agent: Technical Specification & Implementation Plan</h1>
+    <p>Version 1.1 | Date: September 6, 2025</p>
+    <p>Primary Stakeholders: Rishi/Team (Operator), Development Team</p>
+    <p>Stack: React.js (Frontend) | Spring Boot (Backend) | MySQL (Database) | Redis (Queue/Cache)</p>
+  </header>
+
+  <nav>
+    <h3>Contents</h3>
+    <a href="#goal">Goal & KPIs</a>
+    <a href="#scope">Scope</a>
+    <a href="#arch">Architecture</a>
+    <a href="#db">Database</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#ai">AI & Emails</a>
+    <a href="#deliver">Deliverability</a>
+    <a href="#qa">QA Checklist</a>
+    <a href="#team">Team Work</a>
+  </nav>
+
+  <main>
+    <section id="goal">
+      <h2>1. Goal & Core Metrics</h2>
+      <p><b>Project Goal:</b> Automate sending personalized cold emails to AI companies/startups, covering the full outreach cycle (lead intake → emails → replies → reporting).</p>
+      <ul>
+        <li>Daily Send Volume: ~2500 emails</li>
+        <li>Hard Bounce Rate: &lt; 3%</li>
+        <li>Positive Reply Rate: &gt; 10%</li>
+        <li>Time-to-first-send: &lt; 60 mins after CSV upload</li>
+        <li>Personalization latency: &lt; 7s per lead (p95)</li>
+      </ul>
+    </section>
+
+    <section id="scope">
+      <h2>2. Scope of Work</h2>
+      <h3>MVP (2–3 weeks)</h3>
+      <ul>
+        <li>Lead sourcing & enrichment</li>
+        <li>Validation (MX check)</li>
+        <li>Email sequences with warmup</li>
+        <li>Reply/link tracking</li>
+        <li>Simple dashboard + CRM sync</li>
+      </ul>
+      <h3>Phase 2</h3>
+      <ul>
+        <li>LinkedIn DM drafts</li>
+        <li>AI lead scoring & smart replies</li>
+        <li>Calendly booking automation</li>
+        <li>A/B testing + inbox rotation</li>
+      </ul>
+    </section>
+
+    <section id="arch">
+      <h2>3. System Architecture</h2>
+      <p>Built with React (frontend), Spring Boot microservices (backend), MySQL (DB), Redis (queue/cache), S3 (storage). Observability with OpenTelemetry + Grafana.</p>
+      <h3>Architecture Diagram</h3>
+      <svg width="650" height="340">
+        <rect x="50" y="20" width="200" height="60" fill="#0069d9" rx="8"></rect>
+        <text x="150" y="55" fill="white" text-anchor="middle">Frontend (React)</text>
+
+        <rect x="350" y="20" width="200" height="60" fill="#28a745" rx="8"></rect>
+        <text x="450" y="55" fill="white" text-anchor="middle">Backend (Spring Boot)</text>
+
+        <line x1="250" y1="50" x2="350" y2="50" stroke="#000" marker-end="url(#arrow)" />
+
+        <rect x="350" y="120" width="200" height="60" fill="#ffc107" rx="8"></rect>
+        <text x="450" y="155" fill="black" text-anchor="middle">Database (MySQL)</text>
+
+        <rect x="50" y="120" width="200" height="60" fill="#6f42c1" rx="8"></rect>
+        <text x="150" y="155" fill="white" text-anchor="middle">Redis Queue</text>
+
+        <rect x="200" y="220" width="200" height="60" fill="#17a2b8" rx="8"></rect>
+        <text x="300" y="255" fill="white" text-anchor="middle">Email + AI Service</text>
+
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#000" />
+          </marker>
+        </defs>
+
+        <line x1="450" y1="80" x2="450" y2="120" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="250" y1="150" x2="350" y2="150" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="450" y1="180" x2="300" y2="220" stroke="#000" marker-end="url(#arrow)" />
+      </svg>
+    </section>
+
+    <section id="db">
+      <h2>4. Database Design</h2>
+      <p>Core tables: <b>Leads</b>, <b>Campaigns</b>, <b>Messages</b>, <b>Events</b>, <b>Suppression</b>. These hold info about contacts, campaigns, sends, and interactions.</p>
+      <svg width="650" height="280">
+        <rect x="50" y="20" width="150" height="60" fill="#17a2b8" rx="6"></rect>
+        <text x="125" y="55" fill="white" text-anchor="middle">Leads</text>
+
+        <rect x="250" y="20" width="150" height="60" fill="#28a745" rx="6"></rect>
+        <text x="325" y="55" fill="white" text-anchor="middle">Campaigns</text>
+
+        <rect x="450" y="20" width="150" height="60" fill="#ffc107" rx="6"></rect>
+        <text x="525" y="55" fill="black" text-anchor="middle">Messages</text>
+
+        <rect x="150" y="120" width="150" height="60" fill="#6f42c1" rx="6"></rect>
+        <text x="225" y="155" fill="white" text-anchor="middle">Events</text>
+
+        <rect x="350" y="120" width="150" height="60" fill="#dc3545" rx="6"></rect>
+        <text x="425" y="155" fill="white" text-anchor="middle">Suppression</text>
+
+        <line x1="200" y1="80" x2="325" y2="80" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="400" y1="80" x2="525" y2="80" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="325" y1="80" x2="225" y2="120" stroke="#000" marker-end="url(#arrow)" />
+        <line x1="525" y1="80" x2="425" y2="120" stroke="#000" marker-end="url(#arrow)" />
+      </svg>
+    </section>
+
+    <section id="workflow">
+      <h2>5. End-to-End Workflow</h2>
+      <ol>
+        <li><b>Lead Intake:</b> React upload → Spring Boot API → Redis job → Enrichment.</li>
+        <li><b>Enrichment:</b> MX check, fetch website, AI personalization.</li>
+        <li><b>Sequencing:</b> Quartz scheduler → Select leads → Push Email jobs to Redis.</li>
+        <li><b>Sending:</b> Spring Mail → SMTP inboxes with tracking links/pixels.</li>
+        <li><b>Tracking:</b> Opens/clicks/replies logged in events table.</li>
+        <li><b>Triage:</b> AI classifies replies → Pause/reschedule as needed.</li>
+        <li><b>Handover:</b> Push interested leads to HubSpot/Sheets.</li>
+        <li><b>Reporting:</b> Analytics service → Dashboard charts (Recharts).</li>
+      </ol>
+    </section>
+
+    <section id="ai">
+      <h2>6. AI Personalization & Email Sequence</h2>
+      <p>AI helps with writing personalized intros, pain points, and CTAs. Prompts instruct the LLM to output JSON with icebreaker, pain_hypothesis, and CTA.</p>
+      <pre>{
+  "icebreaker": "string (<= 35 words)",
+  "pain_hypothesis": "string (<= 25 words)",
+  "cta_variant": "string (one line, specific next step)"
+}</pre>
+      <p><b>Email Templates:</b></p>
+      <ul>
+        <li><b>Day 0:</b> Main pitch + pilot idea.</li>
+        <li><b>Day 3:</b> Short nudge + proof point.</li>
+        <li><b>Day 9:</b> Breakup email with resource link.</li>
+      </ul>
+    </section>
+
+    <section id="deliver">
+      <h2>7. Deliverability & Compliance</h2>
+      <ul>
+        <li>SPF, DKIM, DMARC setup checks</li>
+        <li>Per-inbox limits + warmup mode</li>
+        <li>One-click unsubscribe → suppression table</li>
+        <li>Admin: suppression import, blocklists, human-approve toggle</li>
+      </ul>
+    </section>
+
+    <section id="qa">
+      <h2>8. QA Checklist</h2>
+      <ul>
+        <li>MX + SMTP validation works</li>
+        <li>DKIM/SPF/DMARC verifier passes</li>
+        <li>Events (open/click/reply) visible in dashboard</li>
+        <li>Unsubscribe link functional</li>
+        <li>AI personalization fields filled correctly</li>
+        <li>Timezone-aware sending + holiday skip works</li>
+        <li>Deduplication prevents duplicates</li>
+      </ul>
+    </section>
+
+    <section id="team">
+      <h2>9. Team Work Split</h2>
+      <div class="team-box">
+        <h3>Mohit</h3>
+        <p>Frontend – React UI (forms, dashboard, charts).</p>
+      </div>
+      <div class="team-box">
+        <h3>Neerav</h3>
+        <p>Backend – Spring Boot APIs, email logic, security.</p>
+      </div>
+      <div class="team-box">
+        <h3>Rudransh</h3>
+        <p>AI – LLM prompts, lead scoring, smart reply drafts.</p>
+      </div>
+      <div class="team-box">
+        <h3>Rishi</h3>
+        <p>Documentation & Marketing – Guides, docs, outreach plans.</p>
+      </div>
+      <div class="team-box">
+        <h3>Shared</h3>
+        <p>Testing, deployment, DB schema design, architecture decisions (done together).</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Smooth scroll for sidebar
+    document.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>
